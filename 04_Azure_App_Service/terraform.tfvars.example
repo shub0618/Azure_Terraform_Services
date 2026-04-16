@@ -1,0 +1,38 @@
+# Copy this file to terraform.tfvars and edit as needed.
+# terraform.tfvars is gitignored by default — never commit real values.
+
+# ── App Service Plan ──
+app_service_plan_name = "asp-demo"
+app_service_plan_sku  = "S1"              # S1 Standard for autoscale + VNet integration
+
+# ── Web App ──
+# web_app_name must be globally unique — it becomes <name>.azurewebsites.net
+web_app_name = "api-demo-XXXXX"
+node_version = "20-lts"
+
+# ── Identity ──
+# System-assigned Managed Identity is used to read secrets from Key Vault.
+enable_managed_identity = true
+
+# ── Key Vault ──
+# Used as a fallback when the Key Vault module's remote state is not available.
+# When data.terraform_remote_state.keyvault resolves, this is ignored.
+key_vault_name = "kv-demo-001"
+
+# ── Health Check ──
+# Azure probes this path every minute; instances that fail are evicted.
+health_check_path = "/api/health"
+
+# ── Autoscale ──
+enable_autoscale            = true
+autoscale_min_instances     = 2           # HA: always 2 running
+autoscale_max_instances     = 8           # cost ceiling
+autoscale_default_instances = 2
+
+# ── Custom Domain (leave empty until DNS is ready) ──
+# Example: "api.example.com"
+custom_domain = ""
+
+# ── Diagnostics (optional) ──
+# enable_diagnostics         = true
+# log_analytics_workspace_id = "/subscriptions/.../workspaces/<name>"

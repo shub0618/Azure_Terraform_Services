@@ -1,0 +1,35 @@
+# Copy this file to terraform.tfvars and edit as needed.
+# terraform.tfvars is gitignored by default — never commit real values.
+
+# ── Location ──
+# Note: this variable is currently not wired into mysql.tf (the server inherits
+# location from the VNet's resource group). Override only if you modify mysql.tf
+# to deploy MySQL in a different region from the VNet.
+mysql_location = "eastus2"
+
+# ── Server ──
+# mysql_server_name must be globally unique across all of Azure.
+mysql_server_name = "mysql-demo-XXXXX"
+mysql_version     = "8.0.21"
+
+# ── SKU ──
+# Burstable B1ms = 1 vCore, 2 GB RAM (~$16/month)   — fine for dev/test
+# Burstable B2s  = 2 vCores, 4 GB RAM (~$32/month)  — default
+# GP_Standard_D2ds_v4                               — general purpose, bump up for prod
+mysql_sku_name        = "B_Standard_B1ms"
+mysql_storage_size_gb = 20
+
+# ── Authentication ──
+mysql_admin_username = "mysqladmin"
+# Password is passed via environment variable for security. NEVER put it here.
+#   export TF_VAR_mysql_admin_password='YourStr0ng!Pass#here'
+
+# ── Backup ──
+mysql_backup_retention_days = 14   # 1-35 days
+mysql_geo_redundant_backup  = false
+
+# ── HA (Disabled for Burstable tier — requires GP or MO SKU) ──
+mysql_ha_mode = "Disabled"
+
+# ── Database ──
+mysql_database_name = "appdb"
