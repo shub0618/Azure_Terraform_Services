@@ -1,111 +1,125 @@
-# terraform-azure-vnet
+# Azure_Terraform_Services
 
-A reference Terraform module for provisioning a **production-shaped Azure Virtual Network** with delegated subnets, NSGs, a route table, an optional NAT Gateway, and Private DNS zones wired for Private Endpoints.
+A collection of modular Terraform projects for building a private, production-shaped Azure environment. Each module lives in its own numbered directory, owns its own state, and exposes outputs that the next module consumes via data sources.
 
-> This is a **personal reference / showcase** repository. It's written as the first layer of a larger private-networking setup (App Service + MySQL Flexible Server + Key Vault + Blob Storage behind Private Endpoints), but it stands on its own — you can `terraform apply` just this and get a clean, well-segmented VNet.
-
----
-
-## What this creates
-
-| Resource | Purpose |
-|---|---|
-| Resource Group *(optional)* | Created fresh, or references an existing one via data source |
-| Virtual Network | `10.0.0.0/24` by default |
-| Subnet: `snet-appservice` | `/26`, delegated to `Microsoft.Web/serverFarms` |
-| Subnet: `snet-mysql` | `/26`, delegated to `Microsoft.DBforMySQL/flexibleServers` |
-| Subnet: `snet-privateendpoints` | `/27`, network policies disabled for PE support |
-| 3 × Network Security Groups | Per-subnet NSGs with least-privilege inbound rules + explicit `DenyAll` at priority 4096 |
-| Route Table | Default `0.0.0.0/0 → Internet` route, associated to all three subnets |
-| NAT Gateway *(optional)* | Static outbound public IP — useful when you need to whitelist your app's egress IP with third parties |
-| 3 × Private DNS zones | `privatelink.mysql.database.azure.com`, `privatelink.blob.core.windows.net`, `privatelink.vaultcore.azure.net` — each linked to the VNet |
-
-### Address plan
-
-```
-VNet:  10.0.0.0/24
-├── 10.0.0.0/26    (64 IPs)  →  snet-appservice
-├── 10.0.0.64/26   (64 IPs)  →  snet-mysql
-└── 10.0.0.128/27  (32 IPs)  →  snet-privateendpoints
-```
+Deploy them in order, or pick the ones you need — they're designed to stand alone where possible.
 
 ---
 
-## File layout
+## Architecture
 
 ```
-.
-├── provider.tf      # azurerm provider + version pins
-├── backend.tf       # remote state on Azure Storage (placeholders — edit before init)
-├── vars.tf          # all input variables with sensible defaults
-├── vnet.tf          # resource group, VNet, 3 subnets
-├── nsg.tf           # 3 NSGs and their subnet associations
-├── route-table.tf   # route table + 3 associations
-├── nat-gateway.tf   # optional NAT gateway (gated behind var.enable_nat_gateway)
-├── dns.tf           # Private DNS zones + VNet links (for_each)
-└── outputs.tf       # IDs + names exported for consumption by downstream modules
+                       ┌──────────────────────────────────────┐
+                       │         Azure Subscription           │
+                       │                                      │
+                       │   ┌────────────────────────────────┐ │
+                       │   │   Resource Group               │ │
+                       │   │                                │ │
+                       │   │   ┌──────────────────────────┐ │ │
+                       │   │   │  VNet  10.0.0.0/24       │ │ │
+                       │   │   │                          │ │ │
+                       │   │   │  ┌────────────────────┐  │ │ │
+                       │   │   │  │ snet-appservice    │  │ │ │
+                       │   │   │  │ 10.0.0.0/26        │──┼─┼─┼──► [App Service]  (future)
+                       │   │   │  └────────────────────┘  │ │ │
+                       │   │   │                          │ │ │
+                       │   │   │  ┌────────────────────┐  │ │ │
+                       │   │   │  │ snet-mysql         │  │ │ │
+                       │   │   │  │ 10.0.0.64/26       │──┼─┼─┼──► [MySQL Flex]   (future)
+                       │   │   │  └────────────────────┘  │ │ │
+                       │   │   │                          │ │ │
+                       │   │   │  ┌────────────────────┐  │ │ │
+                       │   │   │  │ snet-privateendpts │  │ │ │
+                       │   │   │  │ 10.0.0.128/27      │◄─┼─┼─┼── [Key Vault PE]  ✓ done
+                       │   │   │  └────────────────────┘  │ │ │
+                       │   │   │                          │ │ │
+                       │   │   │  NSGs · Route Table ·    │ │ │
+                       │   │   │  NAT Gateway (optional)  │ │ │
+                       │   │   └──────────────────────────┘ │ │
+                       │   │                                │ │
+                       │   │   Private DNS zones:           │ │
+                       │   │   · privatelink.vaultcore.     │ │
+                       │   │   · privatelink.mysql.         │ │
+                       │   │   · privatelink.blob.          │ │
+                       │   └────────────────────────────────┘ │
+                       └──────────────────────────────────────┘
+
+                       Remote state: Azure Storage (per-module key)
 ```
 
 ---
 
-## Usage
+## Modules
 
-### 1. Configure remote state (optional but recommended)
+| # | Module | Status | Description |
+|---|---|---|---|
+| 01 | [`01_Azure_Vnet/`](./01_Azure_Vnet) | ✅ Available | VNet, 3 delegated subnets, NSGs, route table, optional NAT Gateway, Private DNS zones |
+| 02 | [`02_Azure_KeyVaults/`](./02_Azure_KeyVaults) | ✅ Available | Key Vault with soft-delete + purge protection, optional Private Endpoint, diagnostic logging |
+| 03 | `03_Azure_MySQL/` | 🚧 Coming soon | MySQL Flexible Server, VNet-integrated, with DB + user provisioning |
+| 04 | `04_Azure_AppService/` | 🚧 Coming soon | App Service Plan + App Service with VNet integration, Managed Identity, Key Vault references |
 
-Edit `backend.tf` with your own Storage Account, or pass the values at init time:
+---
 
-```bash
-terraform init \
-  -backend-config="resource_group_name=<your-rg>" \
-  -backend-config="storage_account_name=<your-storage-account>" \
-  -backend-config="container_name=tfstate" \
-  -backend-config="key=vnet.terraform.tfstate"
+## Deployment order
+
+Modules share state through data sources — not remote state outputs — so each one looks up the previous module's resources by name from the same resource group. That keeps modules loosely coupled but means **order matters on first apply**:
+
+```
+01_Azure_Vnet  →  02_Azure_KeyVaults  →  03_Azure_MySQL  →  04_Azure_AppService
 ```
 
-Or comment out the `backend "azurerm"` block in `backend.tf` to use local state while experimenting.
+After they exist, you can re-apply any module independently.
 
-### 2. Override defaults (optional)
+---
 
-Copy the example and tweak:
+## How the modules fit together
+
+- **Each module has its own remote state file** (`vnet.terraform.tfstate`, `keyvault.terraform.tfstate`, etc.) in the same Azure Storage container. Blast radius of a mistake is one module, not the whole environment.
+- **Shared contract: resource group name + VNet name.** Every downstream module takes `resource_group_name` and `vnet_name` as input variables and uses `data "azurerm_*"` to pull everything else it needs (subnet IDs, DNS zone IDs, etc.).
+- **Every module creates resources with predictable names** (`snet-privateendpoints`, `privatelink.vaultcore.azure.net`, etc.) so the data-source lookups in the next module don't need to be parameterised to death.
+
+This approach trades a bit of explicitness for a lot of simplicity — no `terraform_remote_state` data sources, no output-chaining hell, no tight coupling. Each module reads like a normal standalone Terraform project.
+
+---
+
+## Prerequisites
+
+Before running any module:
+
+1. **Azure subscription** and credentials discoverable by the `azurerm` provider (Azure CLI login, service principal env vars, or managed identity)
+2. **Terraform `>= 1.3`** and `hashicorp/azurerm ~> 3.0`
+3. **A Storage Account for remote state** (optional but recommended) — one container shared across all modules, one state key per module:
+   ```bash
+   az group create --name rg-terraform-state --location eastus2
+   az storage account create --name <your-unique-name> --resource-group rg-terraform-state --location eastus2 --sku Standard_LRS
+   az storage container create --name tfstate --account-name <your-unique-name>
+   ```
+   Then edit each module's `backend.tf` with the storage account name, or pass it via `-backend-config` at `terraform init` time.
+
+---
+
+## Quick start
+
+Clone, configure, deploy in order:
 
 ```bash
-cp terraform.tfvars.example terraform.tfvars
-```
+git clone https://github.com/<your-user>/Azure_Terraform_Services.git
+cd Azure_Terraform_Services
 
-Edit `terraform.tfvars` with your own RG name, region, CIDRs, etc.
-
-### 3. Plan and apply
-
-```bash
+# Module 1 — VNet
+cd 01_Azure_Vnet
+cp terraform.tfvars.example terraform.tfvars   # edit as needed
 terraform init
-terraform plan
+terraform apply
+
+# Module 2 — Key Vault
+cd ../02_Azure_KeyVaults
+cp terraform.tfvars.example terraform.tfvars   # make sure key_vault_name is globally unique
+terraform init
 terraform apply
 ```
 
----
-
-## Key design choices worth calling out
-
-- **Delegated subnets** — App Service and MySQL Flexible Server both require subnet delegation. Getting this wrong is one of the most common first-time mistakes; it's baked in here.
-- **Explicit `DenyAll_Inbound` at priority 4096** — Azure has an implicit deny, but declaring it explicitly makes audits easier and the intent obvious in code review.
-- **MySQL NSG only accepts from the App Service subnet CIDR** — not from `VirtualNetwork`. Tighter blast radius.
-- **Private DNS zones are managed via `for_each`** — adding a new service (e.g. Service Bus, Cosmos) is a one-line change in `vars.tf`.
-- **NAT Gateway is opt-in** — it's billed per-hour + per-GB, so it's off by default. Flip `enable_nat_gateway = true` only when you actually need a stable outbound IP.
-- **RG can be created OR referenced** — `use_existing_resource_group` toggles between a `resource` and a `data` block, so this module slots cleanly into either greenfield or existing-subscription scenarios.
-
----
-
-## Outputs
-
-All the IDs and names a downstream module (App Service, MySQL, Key Vault, etc.) would typically need — subnet IDs, NSG IDs, DNS zone IDs, and the NAT Gateway public IP when enabled. See `outputs.tf`.
-
----
-
-## Requirements
-
-- Terraform `>= 1.3`
-- `hashicorp/azurerm` `~> 3.0`
-- An Azure subscription and credentials discoverable by the provider (Azure CLI login, service principal env vars, or managed identity)
+Each module's own README has the full variable reference and design notes.
 
 ---
 
