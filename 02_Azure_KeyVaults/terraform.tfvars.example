@@ -1,0 +1,66 @@
+# Copy this file to terraform.tfvars and edit as needed.
+# terraform.tfvars is gitignored by default — never commit real values.
+
+# ── General ──
+# Must match the RG used by the VNet module.
+resource_group_name = "rg-demo-network"
+
+tags = {
+  Environment = "Demo"
+  Project     = "azure-keyvault-demo"
+  ManagedBy   = "Terraform"
+  Owner       = "your-name"
+}
+
+# ── VNet references ──
+# Must match the VNet name used in the VNet module.
+vnet_name = "vnet-demo"
+
+# ── Key Vault ──
+# Must be globally unique across all of Azure. 3-24 chars, start with a letter,
+# alphanumeric and hyphens only.
+key_vault_name = "kv-demo-XXXXX"
+
+sku_name                   = "standard"   # or "premium" for HSM-backed keys
+soft_delete_retention_days = 90
+purge_protection_enabled   = true
+
+# Authorization model — pick ONE:
+#   false = access policies (traditional model, configured via access_policies below)
+#   true  = Azure RBAC (assign 'Key Vault Secrets User', 'Key Vault Administrator', etc.)
+enable_rbac_authorization = false
+
+# ── Integrations ──
+# Usually false unless you specifically need them.
+enabled_for_deployment          = false
+enabled_for_disk_encryption     = false
+enabled_for_template_deployment = false
+
+# ── Network access ──
+public_network_access_enabled = true      # flip to false for private-only access
+network_acl_default_action    = "Allow"   # "Deny" to lock down to explicit IPs only
+network_acl_bypass            = "AzureServices"
+network_acl_ip_rules          = []        # e.g. ["203.0.113.0/24"]
+
+# ── Private Endpoint ──
+# Requires snet-privateendpoints subnet and privatelink.vaultcore.azure.net
+# DNS zone from the VNet module.
+enable_private_endpoint = false
+
+# ── Access Policies ──
+# Used only when enable_rbac_authorization = false.
+# Add entries after consumer identities exist (App Service MSI, OIDC SPs, etc.).
+#
+# access_policies = [
+#   {
+#     object_id               = "00000000-0000-0000-0000-000000000000"
+#     secret_permissions      = ["Get", "List"]
+#     key_permissions         = []
+#     certificate_permissions = []
+#   }
+# ]
+access_policies = []
+
+# ── Diagnostics ──
+enable_diagnostics         = false
+log_analytics_workspace_id = ""

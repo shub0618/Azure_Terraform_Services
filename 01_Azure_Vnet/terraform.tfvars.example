@@ -1,0 +1,36 @@
+# Copy this file to terraform.tfvars and edit as needed.
+# terraform.tfvars is gitignored by default — never commit real values.
+
+# ── General ──
+resource_group_name = "rg-demo-network"
+location            = "East US 2"
+name_prefix         = "demo"
+
+tags = {
+  Environment = "Demo"
+  Project     = "azure-vnet-demo"
+  ManagedBy   = "Terraform"
+  Owner       = "your-name"
+}
+
+# Set true if the RG already exists and you just want to reference it.
+use_existing_resource_group = false
+
+# ── Networking ──
+vnet_name = "vnet-demo"
+vnet_cidr = "10.0.0.0/24"
+
+subnet_appservice_cidr       = "10.0.0.0/26"
+subnet_mysql_cidr            = "10.0.0.64/26"
+subnet_privateendpoints_cidr = "10.0.0.128/27"
+
+# ── Optional ──
+# Flip to true when you need a stable outbound public IP.
+enable_nat_gateway = false
+
+# Add/remove zones as needed for the Private Endpoints you plan to attach.
+private_dns_zones = [
+  "privatelink.mysql.database.azure.com",
+  "privatelink.blob.core.windows.net",
+  "privatelink.vaultcore.azure.net",
+]

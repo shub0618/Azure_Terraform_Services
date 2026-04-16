@@ -1,0 +1,39 @@
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files — they often contain secrets or environment-specific values.
+# Keep the example file so users know what to override.
+*.tfvars
+*.tfvars.json
+!terraform.tfvars.example
+
+# Ignore override files (meant for local dev overrides)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Lock file — opinions vary; keep it committed for reproducibility in apps,
+# ignore it for reusable modules. This is a showcase, so commit it.
+# .terraform.lock.hcl
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
