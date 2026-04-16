@@ -1,22 +1,31 @@
-# Local .terraform directories
+# ────────────────────────────────────────────────────────────────
+# Terraform
+# ────────────────────────────────────────────────────────────────
+
+# Local .terraform directories (any depth — applies to every module)
 **/.terraform/*
 
-# .tfstate files
+# State files (never commit these — remote state only)
 *.tfstate
 *.tfstate.*
 *.tfstate.backup
 
-# Crash log files
+# Plan output files (binary, not meant for source control)
+*.tfplan
+*.plan
+
+# Crash logs
 crash.log
 crash.*.log
 
-# Exclude all .tfvars files — they often contain secrets or environment-specific values.
-# Keep the example file so users know what to override.
+# Variable files — may contain secrets or environment-specific values.
+# The *.example templates are allow-listed so users know what to override.
 *.tfvars
 *.tfvars.json
+!*.tfvars.example
 !terraform.tfvars.example
 
-# Ignore override files (meant for local dev overrides)
+# Override files (meant for local dev overrides)
 override.tf
 override.tf.json
 *_override.tf
@@ -26,12 +35,33 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Lock file — opinions vary; keep it committed for reproducibility in apps,
-# ignore it for reusable modules. This is a showcase, so commit it.
+# Lock file — kept committed in this repo for reproducibility.
+# Uncomment the next line if you'd rather ignore it.
 # .terraform.lock.hcl
 
+# ────────────────────────────────────────────────────────────────
+# Secrets & credentials
+# ────────────────────────────────────────────────────────────────
+
+# Env files commonly used for TF_VAR_* exports
+.env
+.env.*
+!.env.example
+
+# Certificates and private keys
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+
+# ────────────────────────────────────────────────────────────────
 # OS / editor noise
+# ────────────────────────────────────────────────────────────────
+
 .DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
 .vscode/
 .idea/
